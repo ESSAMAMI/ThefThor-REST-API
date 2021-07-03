@@ -1,0 +1,94 @@
+from flask import Flask, render_template, redirect, url_for, request, session, Response
+import socket
+import os
+from random import shuffle
+import shutil
+from pymongo import MongoClient
+import json
+from datetime import datetime
+from EDPwd import EncryptDecryptPwd
+import pandas as pd
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.urandom(24)
+
+@app.route( '/', methods=['GET'] )
+def home() :
+	
+	return "<body style='font-family: sans-serif;background-color:#524876; color:#fff'><center><div style='height:32%'></div><h1 style='font-size:100px;'>SERVER <span style='color:#179482'>POSTER</span></h1></center></body>"
+
+@app.route( '/app/connection/<login>.<pwd>', methods=['GET'])
+def connection(login, pwd) :
+
+    # Creating a pymongo client
+    client = MongoClient('mongodb://mymongodbusername:qzdihgvolihgseoihfoqzdhaqzoiuufhaqozzfhgao@mongo:27017/')
+    #Getting the database instance
+    db = client['db_project']
+    try:
+   
+        user = db.user.find({ "login": login})[0]
+        pwd_crypted = user['pwd']
+        edp = EncryptDecryptPwd()
+        pwd_decrypted = edp.decrypt_pwd(pwd_crypted).decode("utf-8")
+        assert pwd == pwd_decrypted
+        df = pd.DataFrame([user])
+	############################################
+        db.user.update({'login': 'h.essamami@admin.com'},{'$set': {'last_connection': str(datetime.today().strftime('%Y-%m-%d'))}}, upsert=False, multi=False)
+        ############################################
+    except Exception as e:
+        print(e)
+        user = {}
+    if bool(user) == True:
+        response = json.dumps(json.loads(df.to_json(orient="records")))
+    else:
+        response = json.dumps(json.loads(pd.DataFrame().to_json(orient="records")))
+    return Response( response , status=200 , mimetype='text/html' )
+
+
+################################### ALERTS ##################################
+
+@app.route( '/app/alerts/<id>', methods=['GET'])
+def get_alerts(id) :
+    pass
+    # Creating a pymongo client
+    #client = MongoClient('localhost', 27017)
+    client = MongoClient('mongodb://mymongodbusername:qzdihgvolihgseoihfoqzdhaqzoiuufhaqozzfhgao@mongo:27017/')
+
+    #Getting the database instance
+    db = client['db_project']
+    alerts = {}
+    try:
+        df_alerts = pd.DataFrame(db.notifications.find({'user_id':int(id)}))
+        print(df_alerts)
+    except Exception as e:
+        print(e)
+        
+    if bool(df_alerts.empty) != True:
+        response = json.dumps(json.loads(df_alerts.to_json(orient="records")))
+    else:
+        response = json.dumps(json.loads(pd.DataFrame().to_json(orient="records")))
+    return Response( response , status=200 , mimetype='text/html' )
+
+#####################################################################################
+@app.route( '/notifications/more_info/<notification_id>.token_id=<token>', methods=['GET'])
+def more_info(notification_id, token):
+    pass
+    
+    try:
+       # Creating a pymongo client
+       client = MongoClient('mongodb://mymongodbusername:qzdihgvolihgseoihfoqzdhaqzoiuufhaqozzfhgao@mongo:27017/')
+       #Getting the database instance
+       db = client['db_project']
+
+       user = db.user.find({ "pwd": token.encode()})[0]
+       df = pd.DataFrame([user])
+
+       return "OK"
+    except Excpetion as e:
+       print(e)
+       return "ACCESS DENIED..."
+
+if __name__ == '__main__':
+
+    #hostname = socket.gethostname()
+    app.run(debug=True, host="0.0.0.0", port=8000)

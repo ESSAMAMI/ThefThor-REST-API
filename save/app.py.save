@@ -1,0 +1,63 @@
+from flask import Flask, render_template, redirect, url_for, request, session, Response
+import socket
+import os
+from random import shuffle
+import shutil
+from pymongo import MongoClient
+import json
+#from sqlalchemy import create_engine
+
+#import pymysql
+
+import pandas as pd
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.urandom(24)
+
+@app.route( '/', methods=['GET'] )
+def home() :
+	
+	return "<body style='font-family: sans-serif;background-color:#524876; color:#fff'><center><div style='height:32%'></div><h1 style='font-size:100px;'>SERVER <span style='color:#179482'>POSTER</span></h1></center></body>"
+
+
+@app.route( '/app/connection/<login>.<pwd>', methods=['GET'])
+def connection(login, pwd) :
+
+    # sqlEngine = create_engine('mysql+pymysql://root:password@127.0.0.1/smart_security?charset=utf8mb4', pool_recycle=3600)
+    # dbConnection = sqlEngine.connect()
+    # request_str = "select * from account where login='%s' and pwd='%s'" % (login, pwd)
+
+    # frame = pd.read_sql(request_str, dbConnection);
+    # if len(frame) > 0:
+    #     frame['last_connection'] = frame['last_connection'].dt.strftime('%Y-%m-%d')
+    # pd.set_option('display.expand_frame_repr', False)
+    # dbConnection.close()
+    # response = json.dumps(json.loads(frame.to_json(orient="records")))
+    # print(type(response))
+    # return Response( response , status=200 , mimetype='text/html' )
+
+
+    # Creating a pymongo client
+    client = MongoClient('mongodb://mymongodbusername:qzdihgvolihgseoihfoqzdhaqzoiuufhaqozzfhgao@mongo:27017/')
+    #Getting the database instance
+    db = client['db_project']
+    try:
+        user = db.user.find({ "login": login, "pwd":pwd })[0]
+        df = pd.DataFrame([user])
+    except Exception as e:
+        print(e)
+        user = {}
+    if bool(user) == True:
+        response = json.dumps(json.loads(df.to_json(orient="records")))
+    else:
+        response = json.dumps(json.loads(pd.DataFrame().to_json(orient="records")))
+    return Response( response , status=200 , mimetype='text/html' )
+
+
+################################### ALERTS ##################################
+
+
+if __name__ == '__main__':
+
+    #hostname = socket.gethostname()
+    app.run(debug=True, host="0.0.0.0", port=8000)
